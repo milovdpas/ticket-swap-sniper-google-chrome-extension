@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "TicketSwap Sniper",
+  "version": "1.0",
+  "description": "Automatically monitors TicketSwap for available tickets under your max price.",
+  "permissions": ["storage", "notifications"],
+  "host_permissions": ["*://*.ticketswap.nl/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.ticketswap.nl/event/*/*/*/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

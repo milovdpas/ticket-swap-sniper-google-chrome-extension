@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TicketSwap Sniper</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 10px; width: 250px; }
+    label { display: block; margin-top: 10px; }
+    input { width: 100%; padding: 5px; }
+    button {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+<h3>Setup Sniper</h3>
+<label for="maxPrice">Max Price (€):</label>
+<input type="number" id="maxPrice" min="0" step="0.01" />
+
+<label for="minTickets">Minimum Tickets:</label>
+<input type="number" id="minTickets" min="1" value="1" />
+
+<label for="interval">Refresh interval:</label>
+<select id="interval">
+  <option value="15">15 seconds</option>
+  <option value="30">30 seconds</option>
+  <option value="60">60 seconds</option>
+</select>
+<div id="intervalWarning" style="color: orange; font-size: small; display:none;">
+  Warning: Refreshing too frequently may cause temporary block by TicketSwap.
+</div>
+
+<button id="toggleMonitoring" style="background-color: green;">Start Monitoring</button>
+
+<script src="popup.js"></script>
+</body>
+</html>

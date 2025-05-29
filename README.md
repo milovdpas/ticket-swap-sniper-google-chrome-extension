@@ -1,1 +1,1 @@
-# ticket-swap-sniper-google-chrome-extension
+# TicketSwap Sniper Google Chrome extension

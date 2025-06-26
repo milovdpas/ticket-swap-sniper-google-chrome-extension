@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>TicketSwap Sniper</title>
+    <link rel="icon" type="image/png" href="logo.png" />
+    <style>
+        :root {
+            --primary-color: #00B6F0;
+            --secondary-color: white;
+            --border-radius: 10px;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--secondary-color);
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            display: block;
+            margin: 0 auto 20px;
+            max-height: 80px;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+        }
+
+        button {
+            margin-top: 25px;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+            font-size: 16px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #009acd;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <img src="logo.png" alt="Logo" class="logo" />
+    <h2>TicketSwap Sniper</h2>
+
+    <div class="input-group">
+        <label for="eventUrl">Event URL:</label>
+        <input type="text" id="eventUrl" placeholder="https://ticketswap.nl/event/..." />
+    </div>
+
+    <div class="input-group">
+        <label for="maxPrice">Max Price (€):</label>
+        <input type="number" id="maxPrice" value="80" step="0.01" />
+    </div>
+
+    <div class="input-group">
+        <label for="minTickets">Min Tickets:</label>
+        <input type="number" id="minTickets" value="1" min="1" />
+    </div>
+
+    <div class="input-group">
+        <label for="maxTickets">Max Tickets:</label>
+        <input type="number" id="maxTickets" value="2" min="1" />
+    </div>
+
+    <div class="input-group">
+        <label for="token">Auth token:</label>
+        <input type="text" id="token" />
+    </div>
+
+    <button onclick="startSniping()">Start Sniping</button>
+</div>
+
+<script>
+    async function startSniping() {
+        const eventUrl = document.getElementById("eventUrl").value;
+        const maxPrice = document.getElementById("maxPrice").value;
+        const minTickets = document.getElementById("minTickets").value;
+        const maxTickets = document.getElementById("maxTickets").value;
+        const token = document.getElementById("token").value;
+
+        const response = await fetch("http://localhost:3000/start", {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventUrl, maxPrice, minTickets, maxTickets, token })
+        });
+
+        const result = await response.json();
+        alert(result.message || "Sniping started.");
+    }
+</script>
+</body>
+</html>

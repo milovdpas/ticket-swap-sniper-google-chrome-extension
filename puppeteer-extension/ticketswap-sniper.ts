@@ -22,10 +22,60 @@ const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 const REFRESH_INTERVAL_MS = () => Math.floor(Math.random() * 3000) + 4000;
 const getRandomProxy = (): string => PROXIES[Math.floor(Math.random() * PROXIES.length)];
 
-async function setupPageWithProxy(browser: Browser): Promise<Page> {
+async function createSafePage(browser: Browser): Promise<Page> {
     const page = await browser.newPage();
+
+    // Auth if needed (proxy)
     await page.authenticate({ username: proxyUsername, password: proxyPassword });
+
+    // ✅ Add error handlers
+    page.on('error', err => {
+        console.error('💥 [Page Crash]:', err.message);
+    });
+
+    page.on('pageerror', err => {
+        console.error('💥 [Page Runtime Error]:', err.message);
+    });
+
+    page.on('framenavigated', frame => {
+        console.log(`🌍 [Navigated]: ${frame.url()}`);
+    });
+
+    page.on('requestfailed', req => {
+        console.warn(`⚠️ [Request Failed]: ${req.url()} → ${req.failure()?.errorText}`);
+    });
+
     return page;
+}
+
+function isValidPage(page: Page): boolean {
+    return !page.isClosed();
+}
+
+async function safeEvaluate<T>(page: Page, fn: () => T | Promise<T>, label = 'evaluate', defaultReturn: any = null): Promise<T> {
+    if (!isValidPage(page)) {
+        console.warn("⛔ Page is already closed. Skipping...");
+        return defaultReturn;
+    }
+    try {
+        return await page.evaluate(fn);
+    } catch (err: any) {
+        console.error(`⚠️ [${label}] evaluate failed:`, err.message);
+        return defaultReturn;
+    }
+}
+
+async function safeEvaluateElement<T>(page: Page, fn: (element: any) => any | Promise<T>, element: T, label = 'evaluate', defaultReturn: any = null): Promise<any> {
+    if (!isValidPage(page)) {
+        console.warn("⛔ Page is already closed. Skipping...");
+        return defaultReturn;
+    }
+    try {
+        return await page.evaluate(fn, element);
+    } catch (err: any) {
+        console.error(`⚠️ [${label}] evaluate failed:`, err.message);
+        return defaultReturn;
+    }
 }
 
 async function simulateHumanVerification(page: Page) {
@@ -34,15 +84,12 @@ async function simulateHumanVerification(page: Page) {
         const button = await page.$('#b');
         if (!button) break;
 
-        const coords = await page.evaluate(() => {
+        const coords = await safeEvaluate(page, () => {
             const btn = document.getElementById('b');
             if (!btn) return null;
             const rect = btn.getBoundingClientRect();
             return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-        }).catch(err => {
-            console.error('⚠️ Verification check failed:', err.message);
-            return null;
-        });
+        }, 'Get button coords', null);
 
         if (!coords) break;
         console.log(`🖱 Clicking at (${coords.x}, ${coords.y})`);
@@ -73,9 +120,8 @@ async function humanClick(page: Page, x: number, y: number) {
     await page.mouse.up();
 }
 
-async function extractTicketOffers(page: Page) {
-    try {
-        return await page.evaluate(() => {
+async function extractTicketOffers(page: Page): Promise<any[]> {
+        return await safeEvaluate(page, () => {
             const listings: { url: string, price: number, count: number }[] = [];
             const header = [...document.querySelectorAll("h3.styles_h3__fj7M_")]
                 .find(h => h.textContent?.trim().toLowerCase() === "beschikbare tickets");
@@ -99,11 +145,7 @@ async function extractTicketOffers(page: Page) {
             });
 
             return listings;
-        });
-    } catch (error: any) {
-        console.error("⚠️ extractTicketOffers failed:", error.message);
-        return [];
-    }
+        }, 'extractTicketOffers', []);
 }
 
 async function notifyUserTicketFound(price: number, count: number){
@@ -121,7 +163,7 @@ async function notifyUserTicketFound(price: number, count: number){
 async function tryClickBuyButton(page: Page): Promise<boolean> {
     const buttons = await page.$$('button');
     for (const button of buttons) {
-        const text = await page.evaluate(el => el.textContent?.trim().toLowerCase(), button);
+        const text = await safeEvaluateElement(page, el => el.textContent?.trim().toLowerCase(), button, 'buttonText', null);
         if (text?.includes("in winkelwagen")) {
             console.log("✅ Clicking 'In winkelwagen'...");
             await button.click();
@@ -147,13 +189,13 @@ async function handleListing(page: Page, url: string, token: string, maxTickets:
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
     await delay(750);
 
-    const isPackage = await page.evaluate(() =>
+    const isPackage = await safeEvaluate(page, () =>
         document.body.innerText.includes("Deze tickets worden alleen samen verkocht")
-    ).catch(() => false);
+    , 'isPackage', false);
 
-    const isTaken = await page.evaluate(() =>
+    const isTaken = await safeEvaluate(page, () =>
         document.body.innerText.includes("Iemand anders is deze tickets al aan het kopen")
-    ).catch(() => false);
+        , 'isPackage', false);
 
     if (isTaken) {
         console.log("❌ Ticket is being purchased by someone else.");
@@ -161,12 +203,12 @@ async function handleListing(page: Page, url: string, token: string, maxTickets:
     }
 
     if (isPackage) {
-        const count = await page.evaluate(() => {
+        const count = await safeEvaluate(page, () => {
             const h2 = document.querySelector('h2');
             if (!h2) return 0;
             const match = h2.innerText.match(/(\d+)\s+tickets?/i);
             return match ? parseInt(match[1]) : 0;
-        }).catch(() => 0);
+        }, 'isPackageCount', 0);
 
         if (count > maxTickets) {
             console.log(`❌ Too many tickets in package: ${count} > ${maxTickets}`);
@@ -201,7 +243,7 @@ export async function snipeTickets(
         });
 
         try {
-            const page = await setupPageWithProxy(browser);
+            const page = await createSafePage(browser);
             await page.goto(eventUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
             const html = await page.content();
@@ -219,7 +261,7 @@ export async function snipeTickets(
 
                 notifyUserTicketFound(best.price, best.count);
 
-                const listingPage = await setupPageWithProxy(browser);
+                const listingPage = await createSafePage(browser);
                 const success = await handleListing(listingPage, best.url, token, maxTickets);
 
                 if (success) {
